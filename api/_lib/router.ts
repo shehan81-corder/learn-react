@@ -9,7 +9,7 @@ import {
   sortBy,
   type Req,
   type Res,
-} from './http.ts';
+} from './http.js';
 import {
   getDb,
   newId,
@@ -22,7 +22,7 @@ import {
   type ContactStatus,
   type Deal,
   type DealStage,
-} from './store.ts';
+} from './store.js';
 
 const CONTACT_STATUSES: ContactStatus[] = ['lead', 'customer', 'churned'];
 const DEAL_STAGES: DealStage[] = ['new', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
