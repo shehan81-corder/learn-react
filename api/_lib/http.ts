@@ -55,8 +55,12 @@ export async function readJson<T = Record<string, unknown>>(req: Req): Promise<T
 
 export function parseUrl(req: Req): { path: string[]; query: URLSearchParams } {
   const url = new URL(req.url ?? '/', 'http://localhost');
-  const path = url.pathname
-    .replace(/^\/api\/?/, '')
+  // On Vercel every /api/* request is rewritten to the single index function, with the
+  // original path passed as `__path` (see vercel.json). In dev the path is used directly.
+  const rewritten = url.searchParams.get('__path');
+  url.searchParams.delete('__path');
+  const raw = rewritten !== null ? rewritten : url.pathname.replace(/^\/api\/?/, '');
+  const path = raw
     .split('/')
     .filter(Boolean)
     .map(decodeURIComponent);
