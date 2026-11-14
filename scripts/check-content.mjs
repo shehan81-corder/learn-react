@@ -25,6 +25,20 @@ const phaseDayIds = [...curriculum.matchAll(/dayIds: \[([^\]]+)\]/g)].flatMap((m
 const sortedPhase = [...phaseDayIds].sort((a, b) => a - b);
 if (JSON.stringify(sortedPhase) !== JSON.stringify(Array.from({ length: 30 }, (_, i) => i + 1))) fail('PHASES must cover days 1..30 exactly once');
 
+/** Every exercise block must have the required parts and at least two hints. */
+function checkExerciseBlocks(dir, ex, headings) {
+  const blocks = ex.split(/^# (?:practice|challenge): /m).slice(1);
+  blocks.forEach((block, i) => {
+    const title = headings[i]?.[2]?.trim() ?? `#${i + 1}`;
+    for (const part of ['prompt', 'starter', 'solution', 'tests', 'explanation', 'hints']) {
+      if (!new RegExp(`^### ${part}\\s*$`, 'm').test(block)) fail(`${dir} / "${title}": missing "### ${part}"`);
+    }
+    if (!/^### hints\s*\n(?:\s*\n)*\s*[-*\d]/m.test(block)) fail(`${dir} / "${title}": hints should be a bullet list`);
+    const hintCount = (block.split(/^### hints\s*$/m)[1] ?? '').split('\n').filter((l) => /^\s*[-*]|\d+\./.test(l)).length;
+    if (hintCount < 2) fail(`${dir} / "${title}": give at least 2 hints`);
+  });
+}
+
 // ---- per-day files -----------------------------------------------------------
 const dirs = readdirSync(daysDir).filter((d) => /^\d\d-/.test(d)).sort();
 if (dirs.length !== 30) fail(`expected 30 day folders, found ${dirs.length}`);
@@ -67,16 +81,56 @@ for (const dir of dirs) {
     seenTitles.set(title, dir);
   }
 
-  // every exercise block must have the required parts
-  const blocks = ex.split(/^# (?:practice|challenge): /m).slice(1);
-  blocks.forEach((block, i) => {
-    const title = headings[i]?.[2]?.trim() ?? `#${i + 1}`;
-    for (const part of ['prompt', 'starter', 'solution', 'tests', 'explanation', 'hints']) {
-      if (!new RegExp(`^### ${part}\\s*$`, 'm').test(block)) fail(`${dir} / "${title}": missing "### ${part}"`);
+  checkExerciseBlocks(dir, ex, headings);
+}
+
+// ---- primers -------------------------------------------------------------------
+// Optional primers: src/content/primers/<id>/NN-slug/{lesson,exercises}.md, metadata in primers.ts.
+// Each unit has exactly 2 practices + 1 challenge (exercise ids are derived from that).
+const primersMeta = readFileSync(join(root, 'src/content/primers.ts'), 'utf8');
+const widgetNames = [...readFileSync(join(root, 'src/features/widgets/index.ts'), 'utf8').matchAll(/^\s+'([\w-]+)':/gm)].map((m) => m[1]);
+let primerExerciseCount = 0;
+let primerUnitCount = 0;
+const primerChunks = primersMeta.split(/^\s{4}id: '/m).slice(1);
+if (primerChunks.length === 0) fail('primers.ts: no primers found');
+for (const chunk of primerChunks) {
+  const primerId = chunk.slice(0, chunk.indexOf("'"));
+  const slugs = [...chunk.matchAll(/^\s+slug: '([\w-]+)'/gm)].map((m) => m[1]);
+  const primerDir = join(root, 'src/content/primers', primerId);
+  if (!existsSync(primerDir)) {
+    fail(`primer "${primerId}": missing folder src/content/primers/${primerId}`);
+    continue;
+  }
+  const unitDirs = readdirSync(primerDir).filter((d) => /^\d\d-/.test(d)).sort();
+  if (unitDirs.length !== slugs.length) fail(`primer "${primerId}": primers.ts lists ${slugs.length} units but found ${unitDirs.length} folders`);
+  unitDirs.forEach((unitDir, i) => {
+    const label = `primers/${primerId}/${unitDir}`;
+    primerUnitCount++;
+    if (Number(unitDir.slice(0, 2)) !== i + 1) fail(`${label}: unit folders must be numbered 01, 02, ... in order`);
+    if (slugs[i] && unitDir.slice(3) !== slugs[i]) fail(`${label}: folder name should end with the slug "${slugs[i]}" from primers.ts`);
+    const lessonPath = join(primerDir, unitDir, 'lesson.md');
+    const exercisesPath = join(primerDir, unitDir, 'exercises.md');
+    if (!existsSync(lessonPath) || !existsSync(exercisesPath)) {
+      fail(`${label}: needs lesson.md and exercises.md`);
+      return;
     }
-    if (!/^### hints\s*\n(?:\s*\n)*\s*[-*\d]/m.test(block)) fail(`${dir} / "${title}": hints should be a bullet list`);
-    const hintCount = (block.split(/^### hints\s*$/m)[1] ?? '').split('\n').filter((l) => /^\s*[-*]|\d+\./.test(l)).length;
-    if (hintCount < 2) fail(`${dir} / "${title}": give at least 2 hints`);
+    const lesson = readFileSync(lessonPath, 'utf8');
+    const sections = [...lesson.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+    if (sections.length < 4) fail(`${label}: lesson has only ${sections.length} sections (expected at least 4)`);
+    if (sections.some((t) => /^crm\b/i.test(t))) fail(`${label}: primers have no CRM step; rename the "## CRM..." section`);
+    if (!/thinking pattern/i.test(lesson)) fail(`${label}: lesson should include a "thinking pattern" callout`);
+    if (lesson.length < 3000) fail(`${label}: lesson looks too short (${lesson.length} characters)`);
+    for (const m of lesson.matchAll(/^```widget\s*\n([\s\S]*?)\n```/gm)) {
+      if (!widgetNames.includes(m[1].trim())) fail(`${label}: unknown widget "${m[1].trim()}" (known: ${widgetNames.join(', ')})`);
+    }
+    const ex = readFileSync(exercisesPath, 'utf8');
+    const headings = [...ex.matchAll(/^# (practice|challenge): (.+)$/gm)];
+    const practices = headings.filter((h) => h[1] === 'practice').length;
+    const challenges = headings.filter((h) => h[1] === 'challenge').length;
+    if (practices !== 2) fail(`${label}: expected 2 practices, found ${practices}`);
+    if (challenges !== 1) fail(`${label}: expected exactly 1 challenge, found ${challenges}`);
+    primerExerciseCount += headings.length;
+    checkExerciseBlocks(label, ex, headings);
   });
 }
 
@@ -105,4 +159,4 @@ if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`Content OK: ${dirs.length} days, ${exerciseCount} exercises.`);
+console.log(`Content OK: ${dirs.length} days, ${exerciseCount} exercises; ${primerChunks.length} primers, ${primerUnitCount} units, ${primerExerciseCount} primer exercises.`);

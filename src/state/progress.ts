@@ -80,6 +80,11 @@ export const progress = {
     }));
   },
 
+  /** Mark a primer unit as opened. Does not touch the course's "last day". */
+  visitUnit(key: string) {
+    setState((s) => ({ ...s, visited: { ...s.visited, [key]: new Date().toISOString() } }));
+  },
+
   saveDraft(exerciseId: string, code: string) {
     setState((s) => ({ ...s, drafts: { ...s.drafts, [exerciseId]: code } }));
   },
@@ -120,8 +125,8 @@ export const progress = {
     });
   },
 
-  toggleCrmItem(dayId: number, index: number, length: number) {
-    const key = String(dayId);
+  toggleCrmItem(unitKey: number | string, index: number, length: number) {
+    const key = String(unitKey);
     setState((s) => {
       const list = [...(s.crm[key] ?? [])];
       while (list.length < length) list.push(false);
@@ -130,8 +135,8 @@ export const progress = {
     });
   },
 
-  setNote(dayId: number, text: string) {
-    setState((s) => ({ ...s, notes: { ...s.notes, [String(dayId)]: text } }));
+  setNote(unitKey: number | string, text: string) {
+    setState((s) => ({ ...s, notes: { ...s.notes, [String(unitKey)]: text } }));
   },
 
   export(): string {
@@ -159,7 +164,8 @@ export const progress = {
 
 export type DayStatus = 'not-started' | 'in-progress' | 'done';
 
-export function dayStatus(s: ProgressState, dayId: number, exerciseIds: string[]): { status: DayStatus; passed: number; total: number } {
+/** Status of a course day (`dayId` = 3) or a primer unit (`dayId` = "dom-2"). */
+export function dayStatus(s: ProgressState, dayId: number | string, exerciseIds: string[]): { status: DayStatus; passed: number; total: number } {
   const total = exerciseIds.length;
   const passed = exerciseIds.filter((id) => s.exercises[id]?.status === 'passed').length;
   if (total > 0 && passed === total) return { status: 'done', passed, total };

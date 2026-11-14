@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { BookOpen, Check, ChevronLeft, ChevronRight, Circle, CircleDot, Code2, Menu, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, Workflow } from 'lucide-react';
 import { days, exercisesOf, phases } from '../content/index.ts';
+import { PRIMERS, getPrimerMeta, primerUnitPath } from '../content/primers.ts';
+import { primerProgress } from '../state/primerProgress.ts';
+import { PrimerIcon } from './PrimerIcon.tsx';
 import { APP_NAME, REPO_URL, TOTAL_DAYS } from '../config.ts';
 import { dayStatus, useProgress } from '../state/progress.ts';
 import { useTheme } from '../state/theme.ts';
@@ -27,6 +30,8 @@ export function AppShell() {
   useEffect(() => setDrawerOpen(false), [location.pathname]);
 
   const currentDayId = location.pathname.startsWith('/day/') ? Number(params.dayId) : null;
+  const currentPrimer = params.unit ? getPrimerMeta(params.primerId) : undefined;
+  const currentUnit = currentPrimer ? Number(params.unit) : null;
   const doneDays = days.filter((d) => dayStatus(state, d.id, exercisesOf(d).map((e) => e.id)).status === 'done').length;
   const pct = Math.round((doneDays / TOTAL_DAYS) * 100);
 
@@ -52,6 +57,23 @@ export function AppShell() {
         </div>
 
         <div className="topbar-center">
+          {currentPrimer && currentUnit && (
+            <div className="day-nav">
+              <Link to={primerUnitPath(currentPrimer.id, currentUnit - 1)} className={`btn btn-ghost btn-sm ${currentUnit <= 1 ? 'is-disabled' : ''}`} aria-disabled={currentUnit <= 1}>
+                <ChevronLeft size={16} /> <span className="hide-narrow">Unit {currentUnit - 1}</span>
+              </Link>
+              <span className="day-nav-current">
+                {currentPrimer.shortTitle} · {currentUnit} of {currentPrimer.units.length}
+              </span>
+              <Link
+                to={primerUnitPath(currentPrimer.id, currentUnit + 1)}
+                className={`btn btn-ghost btn-sm ${currentUnit >= currentPrimer.units.length ? 'is-disabled' : ''}`}
+                aria-disabled={currentUnit >= currentPrimer.units.length}
+              >
+                <span className="hide-narrow">Unit {currentUnit + 1}</span> <ChevronRight size={16} />
+              </Link>
+            </div>
+          )}
           {currentDayId && (
             <div className="day-nav">
               <Link to={`/day/${currentDayId - 1}`} className={`btn btn-ghost btn-sm ${currentDayId <= 1 ? 'is-disabled' : ''}`} aria-disabled={currentDayId <= 1}>
@@ -91,6 +113,29 @@ export function AppShell() {
 
       <aside className={`sidebar ${sidebarVisible ? 'is-open' : ''}`} aria-label="Course navigation">
         <nav>
+          <div className="sidebar-phase">
+            <div className="sidebar-phase-title">
+              <span className="phase-num">Optional</span>
+              Primers
+            </div>
+            <ul>
+              {PRIMERS.map((primer) => {
+                const p = primerProgress(state, primer);
+                const status = p.unitsDone === primer.units.length ? 'done' : p.started ? 'in-progress' : 'not-started';
+                return (
+                  <li key={primer.id}>
+                    <NavLink to={`/primers/${primer.id}`} className={({ isActive }) => `sidebar-day ${isActive || location.pathname.startsWith(`/primers/${primer.id}/`) ? 'is-active' : ''} status-${status}`}>
+                      <span className="sidebar-day-num">
+                        <PrimerIcon id={primer.id} size={13} />
+                      </span>
+                      <span className="sidebar-day-title">{primer.title}</span>
+                      <StatusIcon status={status} />
+                    </NavLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
           {phases.map((phase) => (
             <div key={phase.id} className="sidebar-phase">
               <div className="sidebar-phase-title">

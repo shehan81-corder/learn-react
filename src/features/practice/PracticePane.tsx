@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Circle, CircleDot, PartyPopper, Trophy } from 'lucide-react';
-import type { Day, Exercise } from '../../content/types.ts';
-import { exercisesOf } from '../../content/index.ts';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { CheckCircle2, Circle, CircleDot, PartyPopper, Trophy } from 'lucide-react';
+import type { Exercise, StudyUnit } from '../../content/types.ts';
 import { useProgress } from '../../state/progress.ts';
-import { TOTAL_DAYS } from '../../config.ts';
 import { ExerciseWorkspace } from './ExerciseWorkspace.tsx';
 
-export function PracticePane({ day }: { day: Day }) {
+const exercisesOf = (unit: StudyUnit): Exercise[] => (unit.challenge ? [...unit.practices, unit.challenge] : unit.practices);
+
+/**
+ * Exercise tabs and workspace for a day or primer unit. `completeMessage` is
+ * shown in a success banner once every exercise has passed.
+ */
+export function PracticePane({ day, completeMessage }: { day: StudyUnit; completeMessage: ReactNode }) {
   const state = useProgress();
   const exercises = useMemo(() => exercisesOf(day), [day]);
   const firstOpen = exercises.find((e) => state.exercises[e.id]?.status !== 'passed')?.id ?? exercises[0]?.id;
@@ -18,14 +21,14 @@ export function PracticePane({ day }: { day: Day }) {
     const s = state;
     setActiveId(list.find((e) => s.exercises[e.id]?.status !== 'passed')?.id ?? list[0]?.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.id]);
+  }, [day.key]);
 
   const active = exercises.find((e) => e.id === activeId) ?? exercises[0];
   const passedCount = exercises.filter((e) => state.exercises[e.id]?.status === 'passed').length;
   const allDone = exercises.length > 0 && passedCount === exercises.length;
 
   if (!exercises.length) {
-    return <div className="empty-state">No exercises for this day yet.</div>;
+    return <div className="empty-state">No exercises here yet.</div>;
   }
 
   const goNext = () => {
@@ -49,16 +52,7 @@ export function PracticePane({ day }: { day: Day }) {
       {allDone && (
         <div className="banner banner-success day-done">
           <PartyPopper size={18} />
-          <span>
-            Day {day.id} complete! {day.crm ? 'Finish the CRM step on the left, then ' : 'Then '}
-            {day.id < TOTAL_DAYS ? (
-              <Link to={`/day/${day.id + 1}`}>
-                continue to Day {day.id + 1} <ArrowRight size={14} />
-              </Link>
-            ) : (
-              <Link to="/">review your journey on the home page</Link>
-            )}
-          </span>
+          <span>{completeMessage}</span>
         </div>
       )}
 

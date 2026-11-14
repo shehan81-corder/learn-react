@@ -1,26 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { BookMarked, CheckSquare, ExternalLink, NotebookPen, Square, Target } from 'lucide-react';
-import type { Day } from '../../content/types.ts';
+import type { StudyUnit } from '../../content/types.ts';
 import { Markdown } from '../../components/Markdown.tsx';
 import { progress, useProgress } from '../../state/progress.ts';
 import { useDebouncedCallback } from '../../lib/hooks.ts';
 import { CRM_NAME } from '../../config.ts';
 
-export function LessonPane({ day }: { day: Day }) {
+export function LessonPane({ day, objectivesTitle = 'Today you will learn to' }: { day: StudyUnit; objectivesTitle?: string }) {
   const state = useProgress();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<string>(day.sections[0]?.id ?? '');
-  const checklist = state.crm[String(day.id)] ?? [];
-  const noteSaved = state.notes[String(day.id)] ?? '';
+  const checklist = state.crm[day.key] ?? [];
+  const noteSaved = state.notes[day.key] ?? '';
   const [note, setNote] = useState(noteSaved);
-  const saveNote = useDebouncedCallback((text: string) => progress.setNote(day.id, text), 500);
+  const saveNote = useDebouncedCallback((text: string) => progress.setNote(day.key, text), 500);
 
   useEffect(() => {
-    setNote(state.notes[String(day.id)] ?? '');
+    setNote(state.notes[day.key] ?? '');
     setActive(day.sections[0]?.id ?? '');
     scrollRef.current?.scrollTo({ top: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.id]);
+  }, [day.key]);
 
   // Highlight the section currently in view.
   useEffect(() => {
@@ -37,7 +37,7 @@ export function LessonPane({ day }: { day: Day }) {
     );
     headings.forEach((h) => observer.observe(h));
     return () => observer.disconnect();
-  }, [day.id]);
+  }, [day.key]);
 
   const jump = (id: string) => {
     const el = scrollRef.current?.querySelector<HTMLElement>(`[data-section="${id}"]`);
@@ -65,7 +65,7 @@ export function LessonPane({ day }: { day: Day }) {
       <div className="lesson-scroll" ref={scrollRef}>
         <section className="lesson-objectives">
           <h2 className="lesson-h2">
-            <Target size={18} /> Today you will learn to
+            <Target size={18} /> {objectivesTitle}
           </h2>
           <ul className="objectives">
             {day.objectives.map((o) => (
@@ -93,7 +93,7 @@ export function LessonPane({ day }: { day: Day }) {
                   const done = !!checklist[i];
                   return (
                     <li key={item}>
-                      <button type="button" className={`check-item ${done ? 'is-done' : ''}`} onClick={() => progress.toggleCrmItem(day.id, i, day.crm!.checklist.length)} aria-pressed={done}>
+                      <button type="button" className={`check-item ${done ? 'is-done' : ''}`} onClick={() => progress.toggleCrmItem(day.key, i, day.crm!.checklist.length)} aria-pressed={done}>
                         {done ? <CheckSquare size={18} /> : <Square size={18} />}
                         <span>{item}</span>
                       </button>
@@ -109,7 +109,7 @@ export function LessonPane({ day }: { day: Day }) {
           <h2 className="lesson-h2">
             <BookMarked size={18} /> Read more
           </h2>
-          <p className="muted">Formal references for today's topics. Skim them now, or bookmark for when you get stuck.</p>
+          <p className="muted">Formal references for these topics. Skim them now, or bookmark for when you get stuck.</p>
           <ul className="references">
             {day.references.map((ref) => (
               <li key={ref.url}>

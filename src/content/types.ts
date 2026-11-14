@@ -69,12 +69,51 @@ export interface DayMeta {
   plan?: Partial<TimePlan>;
 }
 
-export interface Day extends DayMeta {
-  plan: TimePlan;
+/**
+ * Anything rendered with the split-screen lesson + practice layout: a course
+ * day or a primer unit.
+ */
+export interface StudyUnit {
+  /** Progress key for notes, checklist and visits ("3" for Day 3, "dom-2" for a primer unit). */
+  key: string;
+  objectives: string[];
+  references: Reference[];
   sections: LessonSection[];
   practices: Exercise[];
   challenge: Exercise | null;
   crm: CrmStep | null;
+}
+
+export interface Day extends DayMeta, StudyUnit {
+  plan: TimePlan;
+}
+
+export type PrimerId = 'dom' | 'typescript';
+
+export interface PrimerUnitMeta {
+  slug: string;
+  title: string;
+  tagline: string;
+  minutes: number;
+  objectives: string[];
+  references: Reference[];
+}
+
+export interface PrimerMeta {
+  id: PrimerId;
+  title: string;
+  shortTitle: string;
+  tagline: string;
+  description: string;
+  /** The course day this primer prepares you for. */
+  helpsWith: string;
+  units: PrimerUnitMeta[];
+}
+
+export interface PrimerUnit extends PrimerUnitMeta, StudyUnit {
+  primerId: PrimerId;
+  /** 1-based position within the primer. */
+  index: number;
 }
 
 export const DEFAULT_PLAN: TimePlan = { learn: 15, walkthrough: 10, practice: 20, challenge: 10, crm: 5 };

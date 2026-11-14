@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { BookOpen, Clock, Code2 } from 'lucide-react';
+import { ArrowRight, BookOpen, Clock, Code2 } from 'lucide-react';
 import { getDay, phaseOf } from '../content/index.ts';
 import { SplitPane } from '../components/SplitPane.tsx';
 import { LessonPane } from '../features/lesson/LessonPane.tsx';
@@ -43,6 +43,19 @@ export function DayPage() {
   }
 
   const phase = phaseOf(day);
+  const completeMessage = (
+    <>
+      Day {day.id} complete! {day.crm ? 'Finish the CRM step on the left, then ' : 'Then '}
+      {day.id < TOTAL_DAYS ? (
+        <Link to={`/day/${day.id + 1}`}>
+          continue to Day {day.id + 1} <ArrowRight size={14} />
+        </Link>
+      ) : (
+        <Link to="/">review your journey on the home page</Link>
+      )}
+    </>
+  );
+  const practice = <PracticePane day={day} completeMessage={completeMessage} />;
   const total = Object.values(day.plan).reduce((a, b) => a + b, 0);
 
   return (
@@ -82,10 +95,10 @@ export function DayPage() {
               <Code2 size={16} /> Practice
             </button>
           </div>
-          <div className="day-mobile-body">{mobileTab === 'lesson' ? <LessonPane day={day} /> : <PracticePane day={day} />}</div>
+          <div className="day-mobile-body">{mobileTab === 'lesson' ? <LessonPane day={day} /> : practice}</div>
         </div>
       ) : (
-        <SplitPane className="day-split" storageKey="lrt.split.day" defaultRatio={0.42} min={0.25} max={0.7} first={<LessonPane day={day} />} second={<PracticePane day={day} />} />
+        <SplitPane className="day-split" storageKey="lrt.split.day" defaultRatio={0.42} min={0.25} max={0.7} first={<LessonPane day={day} />} second={practice} />
       )}
     </div>
   );

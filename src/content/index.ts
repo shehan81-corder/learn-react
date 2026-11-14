@@ -16,6 +16,7 @@ function buildDay(meta: (typeof DAYS_META)[number]): Day {
   const { practices, challenge } = parseExercises(fileFor(exerciseFiles, meta.id), meta.id);
   return {
     ...meta,
+    key: String(meta.id),
     plan: { ...DEFAULT_PLAN, ...(meta.plan ?? {}) },
     sections,
     crm,

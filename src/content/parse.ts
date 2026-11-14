@@ -82,7 +82,7 @@ interface RawBlock {
  *   ### explanation              markdown
  *   ### hints                    bullet list
  */
-export function parseExercises(md: string, dayId: number): { practices: Exercise[]; challenge: Exercise | null } {
+export function parseExercises(md: string, dayId: number, idPrefix = `d${String(dayId).padStart(2, '0')}`): { practices: Exercise[]; challenge: Exercise | null } {
   const lines = md.replace(/\r\n/g, '\n').split('\n');
   const blocks: RawBlock[] = [];
   let block: RawBlock | null = null;
@@ -127,7 +127,7 @@ export function parseExercises(md: string, dayId: number): { practices: Exercise
     const mode: SandboxMode = (meta.mode as SandboxMode) || (language === 'tsx' || language === 'jsx' ? 'react' : 'script');
     const isChallenge = b.kind === 'challenge';
     const index = isChallenge ? 0 : ++practiceIndex;
-    const id = `d${String(dayId).padStart(2, '0')}-${isChallenge ? 'challenge' : `p${index}`}`;
+    const id = `${idPrefix}-${isChallenge ? 'challenge' : `p${index}`}`;
     const exercise: Exercise = {
       id,
       dayId,

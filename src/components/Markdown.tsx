@@ -1,4 +1,4 @@
-import { memo, useState, type ComponentProps, type ReactNode } from 'react';
+import { createContext, memo, useContext, useState, type ComponentProps, type ComponentType, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
@@ -16,10 +16,32 @@ function toText(node: HastNode | undefined): string {
   return (node.children ?? []).map(toText).join('');
 }
 
-function Pre({ node, children, ...rest }: ComponentProps<'pre'> & { node?: HastNode }) {
+/**
+ * Interactive widgets that lesson Markdown can embed with a fenced block:
+ *
+ *   ```widget
+ *   vdom-diff
+ *   ```
+ *
+ * Pages that use widgets provide the registry, so widget code is only bundled
+ * with those pages.
+ */
+export const MarkdownWidgets = createContext<Record<string, ComponentType>>({});
+
+function Pre(props: ComponentProps<'pre'> & { node?: HastNode }) {
+  const widgets = useContext(MarkdownWidgets);
+  const lang = /language-(\w+)/.exec(String((props.node?.children?.[0] as { properties?: { className?: string[] } } | undefined)?.properties?.className?.join(' ') ?? ''))?.[1];
+  if (lang === 'widget') {
+    const name = toText(props.node).trim();
+    const Widget = widgets[name];
+    return Widget ? <Widget /> : <p className="muted">[Interactive demo “{name}” is not available here.]</p>;
+  }
+  return <CodeBlock {...props} lang={lang} />;
+}
+
+function CodeBlock({ node, children, lang, ...rest }: ComponentProps<'pre'> & { node?: HastNode; lang?: string }) {
   const [copied, setCopied] = useState(false);
   const text = toText(node);
-  const lang = /language-(\w+)/.exec(String((node?.children?.[0] as { properties?: { className?: string[] } } | undefined)?.properties?.className?.join(' ') ?? ''))?.[1];
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);

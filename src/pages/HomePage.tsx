@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, CheckCircle2, Circle, CircleDot, Clock, Code2, FlaskConical, Layers, Moon, Rocket, Save, Workflow } from 'lucide-react';
-import { days, exercisesOf, phases, totalExercises } from '../content/index.ts';
+import { days, exercisesOf, getExercise, phases, totalExercises } from '../content/index.ts';
+import { PRIMERS } from '../content/primers.ts';
+import { primerProgress } from '../state/primerProgress.ts';
+import { PrimerIcon } from '../components/PrimerIcon.tsx';
 import { dayStatus, useProgress } from '../state/progress.ts';
 import { APP_TAGLINE, CRM_NAME, REPO_URL, TOTAL_DAYS } from '../config.ts';
 
@@ -8,7 +11,8 @@ export function HomePage() {
   const state = useProgress();
   const statuses = new Map(days.map((d) => [d.id, dayStatus(state, d.id, exercisesOf(d).map((e) => e.id))]));
   const doneDays = [...statuses.values()].filter((s) => s.status === 'done').length;
-  const passed = Object.values(state.exercises).filter((e) => e.status === 'passed').length;
+  // Course exercises only: primer exercises are tracked separately.
+  const passed = Object.entries(state.exercises).filter(([id, e]) => e.status === 'passed' && getExercise(id)).length;
   const nextDay = days.find((d) => statuses.get(d.id)?.status !== 'done') ?? days[days.length - 1];
   const resumeDay = state.lastDayId && statuses.get(state.lastDayId)?.status !== 'done' ? state.lastDayId : nextDay?.id ?? 1;
   const started = !!state.startedAt;
@@ -39,6 +43,36 @@ export function HomePage() {
           <Stat label="Exercises passed" value={`${passed}/${totalExercises}`} />
           <Stat label="Time per day" value="1 hour" />
           <Stat label="Total" value="~30 hours" />
+        </div>
+      </section>
+
+      <section className="primers-home">
+        <h2>New to the DOM or TypeScript? Start with a primer</h2>
+        <p className="muted">
+          Two optional, self-paced primers outside the 30-day plan. Each has four short units with interactive examples and practice. Skip them if the topic is
+          familiar.
+        </p>
+        <div className="primer-cards">
+          {PRIMERS.map((primer) => {
+            const p = primerProgress(state, primer);
+            return (
+              <Link key={primer.id} to={`/primers/${primer.id}`} className="primer-card">
+                <span className="primer-icon">
+                  <PrimerIcon id={primer.id} size={20} />
+                </span>
+                <span className="primer-card-body">
+                  <span className="primer-card-title">
+                    {primer.title} <span className="badge">Optional</span>
+                  </span>
+                  <span className="muted">{primer.tagline}</span>
+                  <span className="small muted">
+                    {primer.units.length} units · {p.unitsDone}/{primer.units.length} done · helps with {primer.helpsWith}
+                  </span>
+                </span>
+                <ArrowRight size={18} className="primer-card-arrow" />
+              </Link>
+            );
+          })}
         </div>
       </section>
 
